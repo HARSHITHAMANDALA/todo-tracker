@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${appTitle}">Task Tracker</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 30px auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: left; }
+        .done { text-decoration: line-through; color: #888; }
+        .error { color: red; }
+        form.inline { display: inline; }
+    </style>
+</head>
+<body>
+<h1 th:text="${appTitle}">Task Tracker</h1>
+<p>Total: <b th:text="${stats.total}">0</b> |
+   Pending: <b th:text="${stats.pending}">0</b> |
+   Completed: <b th:text="${stats.completed}">0</b></p>
+
+<form th:action="@{/tasks}" th:object="${task}" method="post">
+    <input type="text" th:field="*{title}" placeholder="Task title">
+    <input type="text" th:field="*{description}" placeholder="Description">
+    <select th:field="*{priority}">
+        <option th:each="p : ${T(com.example.todo_tracker.model.Task.Priority).values()}"
+                th:value="${p}" th:text="${p}"></option>
+    </select>
+    <button type="submit">Add task</button>
+    <div class="error" th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></div>
+</form>
+
+<table>
+    <tr><th>Task</th><th>Priority</th><th>Status</th><th>Actions</th></tr>
+    <tr th:if="${#lists.isEmpty(tasks)}"><td colspan="4">No tasks yet.</td></tr>
+    <tr th:each="t : ${tasks}">
+        <td th:class="${t.completed} ? 'done'">
+            <b th:text="${t.title}"></b><br><small th:text="${t.description}"></small>
+        </td>
+        <td th:text="${t.priority}"></td>
+        <td th:text="${t.completed} ? 'Done' : 'Pending'"></td>
+        <td>
+            <form class="inline" th:action="@{/tasks/{id}/toggle(id=${t.id})}" method="post">
+                <button type="submit" th:text="${t.completed} ? 'Reopen' : 'Complete'"></button>
+            </form>
+            <form class="inline" th:action="@{/tasks/{id}/delete(id=${t.id})}" method="post">
+                <button type="submit">Delete</button>
+            </form>
+        </td>
+    </tr>
+</table>
+
+<p><small>Build: <code th:text="${appVersion}">dev</code></small></p>
+</body>
+</html>
