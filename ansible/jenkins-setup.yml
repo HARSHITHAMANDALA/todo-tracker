@@ -1,0 +1,123 @@
+---
+- name: Provision the Jenkins CI server
+  hosts: local
+  become: true
+  vars:
+    maven_version: "3.9.9"
+    kubectl_version: "v1.36.1"
+    gitleaks_version: "8.21.2"
+
+  tasks:
+    - name: Install base packages, Java 17 and Docker
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - git
+          - unzip
+          - jq
+          - fontconfig
+          - openjdk-17-jdk
+          - docker.io
+          - python3-pip
+          - python3-kubernetes
+          - python3-yaml
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Download Maven
+      ansible.builtin.get_url:
+        url: "https://archive.apache.org/dist/maven/maven-3/{{ maven_version }}/binaries/apache-maven-{{ maven_version }}-bin.tar.gz"
+        dest: /tmp/apache-maven.tar.gz
+        mode: "0644"
+
+    - name: Unpack Maven
+      ansible.builtin.unarchive:
+        src: /tmp/apache-maven.tar.gz
+        dest: /opt
+        remote_src: true
+        creates: "/opt/apache-maven-{{ maven_version }}"
+
+    - name: Put mvn on the PATH
+      ansible.builtin.file:
+        src: "/opt/apache-maven-{{ maven_version }}/bin/mvn"
+        dest: /usr/local/bin/mvn
+        state: link
+
+    - name: Download the Jenkins repository key
+      ansible.builtin.get_url:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        dest: /usr/share/keyrings/jenkins-keyring.asc
+        mode: "0644"
+
+    - name: Add the Jenkins apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+        filename: jenkins
+        state: present
+
+    - name: Install Jenkins
+      ansible.builtin.apt:
+        name: jenkins
+        state: present
+        update_cache: true
+
+    - name: Let the jenkins user run Docker
+      ansible.builtin.user:
+        name: jenkins
+        groups: docker
+        append: true
+      notify: Restart Jenkins
+
+    - name: Install kubectl
+      ansible.builtin.get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: "0755"
+
+    - name: Install Azure CLI
+      ansible.builtin.shell: curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+      args:
+        creates: /usr/bin/az
+
+    - name: Download Gitleaks
+      ansible.builtin.get_url:
+        url: "https://github.com/gitleaks/gitleaks/releases/download/v{{ gitleaks_version }}/gitleaks_{{ gitleaks_version }}_linux_x64.tar.gz"
+        dest: /tmp/gitleaks.tar.gz
+        mode: "0644"
+
+    - name: Install Gitleaks
+      ansible.builtin.unarchive:
+        src: /tmp/gitleaks.tar.gz
+        dest: /usr/local/bin
+        remote_src: true
+        include:
+          - gitleaks
+        creates: /usr/local/bin/gitleaks
+
+    - name: Install the Ansible Kubernetes collection (used by the deploy playbook)
+      ansible.builtin.command: ansible-galaxy collection install kubernetes.core -p /usr/share/ansible/collections
+      args:
+        creates: /usr/share/ansible/collections/ansible_collections/kubernetes/core
+
+    - name: Make sure Docker and Jenkins are enabled and running
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - docker
+        - jenkins
+
+    - name: Wait for Jenkins to create its first-run password
+      ansible.builtin.wait_for:
+        path: /var/lib/jenkins/secrets/initialAdminPassword
+        timeout: 180
+
+  handlers:
+    - name: Restart Jenkins
+      ansible.builtin.systemd:
+        name: jenkins
+        state: restarted
