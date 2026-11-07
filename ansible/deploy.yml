@@ -13,6 +13,9 @@
     - name: Roll out the new image
       ansible.builtin.command: kubectl set image deployment/todo-tracker todo-tracker={{ image }}
 
+    - name: Show the build tag in the app footer
+      ansible.builtin.command: kubectl set env deployment/todo-tracker APP_VERSION={{ image.split(':')[-1] }}
+
     - name: Wait for rollout to finish
       ansible.builtin.command: kubectl rollout status deployment/todo-tracker --timeout=180s
       changed_when: false
