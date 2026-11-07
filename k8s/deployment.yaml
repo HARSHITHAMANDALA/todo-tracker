@@ -2,16 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: todo-tracker
-  namespace: todo
-  labels:
-    app: todo-tracker
 spec:
   replicas: 1
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
   selector:
     matchLabels:
       app: todo-tracker
@@ -20,35 +12,25 @@ spec:
       labels:
         app: todo-tracker
     spec:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1001
+      imagePullSecrets:
+        - name: acr-pull
       containers:
         - name: todo-tracker
-          image: todoacrharsh2611.azurecr.io/todo-tracker:v1
-          imagePullPolicy: Always
+          image: expensereghash123.azurecr.io/todo-tracker:latest
           ports:
             - containerPort: 8080
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xmx256m"
           resources:
             requests:
-              cpu: 250m
-              memory: 512Mi
+              cpu: 100m
+              memory: 256Mi
             limits:
-              cpu: "1"
-              memory: 1Gi
+              memory: 512Mi
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /
               port: 8080
-            initialDelaySeconds: 20
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: 8080
-            initialDelaySeconds: 45
-            periodSeconds: 15
+            initialDelaySeconds: 15
+            periodSeconds: 5

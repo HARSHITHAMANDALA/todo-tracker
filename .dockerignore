@@ -1,9 +1,1 @@
-target/
-.git/
-.github/
-.idea/
-.vscode/
-*.iml
-*.md
-*.log
-.env
+.git
