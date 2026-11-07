@@ -4,8 +4,8 @@ pipeline {
   environment {
     REGISTRY      = 'expensereghash123.azurecr.io'
     IMAGE         = 'todo-tracker'
-    SONAR_ORG     = 'HARSHITHAMANDALA'
-    SONAR_PROJECT = 'todo-tracker'
+    SONAR_ORG     = 'harshithamandala'
+    SONAR_PROJECT = 'HARSHITHAMANDALA_todo-tracker'
   }
   stages {
     stage('Checkout') {
