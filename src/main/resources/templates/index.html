@@ -2,53 +2,154 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title th:text="${appTitle}">Task Tracker</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 30px auto; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: left; }
-        .done { text-decoration: line-through; color: #888; }
-        .error { color: red; }
-        form.inline { display: inline; }
+        :root {
+            --bg: #f3f4fb; --card: #ffffff; --text: #1f2937; --muted: #6b7280;
+            --border: #e5e7eb; --primary: #4f46e5; --primary-dark: #4338ca;
+            --high: #dc2626; --medium: #d97706; --low: #059669; --done: #10b981;
+            --shadow: 0 4px 16px rgba(31, 41, 55, 0.08);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0f172a; --card: #1e293b; --text: #e5e7eb; --muted: #94a3b8;
+                --border: #334155; --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; background: var(--bg); color: var(--text);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.5;
+        }
+        header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: #fff; padding: 36px 20px 80px; text-align: center;
+        }
+        header h1 { margin: 0; font-size: 2rem; letter-spacing: 0.5px; }
+        header p { margin: 6px 0 0; opacity: 0.85; font-size: 0.95rem; }
+        main { max-width: 860px; margin: -56px auto 40px; padding: 0 16px; }
+        .card {
+            background: var(--card); border-radius: 14px; padding: 20px;
+            box-shadow: var(--shadow); margin-bottom: 20px;
+        }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+        .stat {
+            background: var(--card); border-radius: 14px; padding: 16px;
+            text-align: center; box-shadow: var(--shadow); border-top: 4px solid var(--primary);
+        }
+        .stat.pending { border-top-color: var(--medium); }
+        .stat.completed { border-top-color: var(--done); }
+        .stat .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+        .stat b { display: block; font-size: 2rem; margin-top: 2px; }
+        .add-form { display: grid; grid-template-columns: 2fr 3fr 1.2fr auto; gap: 10px; }
+        input[type="text"], select {
+            width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px;
+            background: var(--bg); color: var(--text); font-size: 0.95rem; font-family: inherit;
+        }
+        input[type="text"]:focus, select:focus {
+            outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+        button {
+            cursor: pointer; border: none; border-radius: 10px; padding: 11px 18px;
+            font-size: 0.9rem; font-weight: 600; font-family: inherit;
+            background: var(--primary); color: #fff; transition: background 0.15s, transform 0.05s;
+        }
+        button:hover { background: var(--primary-dark); }
+        button:active { transform: scale(0.97); }
+        button.secondary { background: transparent; color: var(--primary); border: 1px solid var(--border); }
+        button.secondary:hover { background: var(--bg); }
+        button.danger { background: transparent; color: var(--high); border: 1px solid var(--border); }
+        button.danger:hover { background: rgba(220, 38, 38, 0.1); }
+        .error { grid-column: 1 / -1; color: var(--high); font-size: 0.85rem; }
+        h2 { margin: 0 0 14px; font-size: 1.1rem; }
+        .task {
+            display: flex; align-items: center; justify-content: space-between; gap: 14px;
+            padding: 14px 0; border-bottom: 1px solid var(--border);
+        }
+        .task:last-child { border-bottom: none; }
+        .task-info { flex: 1; min-width: 0; }
+        .task-title { font-weight: 600; font-size: 1rem; }
+        .task-desc { color: var(--muted); font-size: 0.88rem; }
+        .task.is-done .task-title, .task.is-done .task-desc { text-decoration: line-through; opacity: 0.55; }
+        .badges { display: flex; gap: 8px; align-items: center; }
+        .badge {
+            font-size: 0.7rem; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+            padding: 4px 10px; border-radius: 999px; background: var(--border); color: var(--muted);
+        }
+        .badge.prio-high { background: rgba(220, 38, 38, 0.12); color: var(--high); }
+        .badge.prio-medium { background: rgba(217, 119, 6, 0.14); color: var(--medium); }
+        .badge.prio-low { background: rgba(5, 150, 105, 0.12); color: var(--low); }
+        .badge.status-done { background: rgba(16, 185, 129, 0.15); color: var(--done); }
+        .badge.status-pending { background: rgba(217, 119, 6, 0.14); color: var(--medium); }
+        .actions { display: flex; gap: 8px; }
+        form.inline { display: inline; margin: 0; }
+        .empty { text-align: center; color: var(--muted); padding: 28px 0; }
+        footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding-bottom: 30px; }
+        footer code { background: var(--border); padding: 2px 8px; border-radius: 6px; }
+        @media (max-width: 720px) {
+            .add-form { grid-template-columns: 1fr; }
+            .task { flex-direction: column; align-items: flex-start; }
+            .stats { gap: 8px; }
+            .stat b { font-size: 1.5rem; }
+        }
     </style>
 </head>
 <body>
-<h1 th:text="${appTitle}">Task Tracker</h1>
-<p>Total: <b th:text="${stats.total}">0</b> |
-   Pending: <b th:text="${stats.pending}">0</b> |
-   Completed: <b th:text="${stats.completed}">0</b></p>
+<header>
+    <h1 th:text="${appTitle}">Task Tracker</h1>
+    <p>Plan it. Track it. Ship it.</p>
+</header>
 
-<form th:action="@{/tasks}" th:object="${task}" method="post">
-    <input type="text" th:field="*{title}" placeholder="Task title">
-    <input type="text" th:field="*{description}" placeholder="Description">
-    <select th:field="*{priority}">
-        <option th:each="p : ${T(com.example.todo_tracker.model.Task.Priority).values()}"
-                th:value="${p}" th:text="${p}"></option>
-    </select>
-    <button type="submit">Add task</button>
-    <div class="error" th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></div>
-</form>
+<main>
+    <section class="stats">
+        <div class="stat"><span class="label">Total</span><b th:text="${stats.total}">0</b></div>
+        <div class="stat pending"><span class="label">Pending</span><b th:text="${stats.pending}">0</b></div>
+        <div class="stat completed"><span class="label">Completed</span><b th:text="${stats.completed}">0</b></div>
+    </section>
 
-<table>
-    <tr><th>Task</th><th>Priority</th><th>Status</th><th>Actions</th></tr>
-    <tr th:if="${#lists.isEmpty(tasks)}"><td colspan="4">No tasks yet.</td></tr>
-    <tr th:each="t : ${tasks}">
-        <td th:class="${t.completed} ? 'done'">
-            <b th:text="${t.title}"></b><br><small th:text="${t.description}"></small>
-        </td>
-        <td th:text="${t.priority}"></td>
-        <td th:text="${t.completed} ? 'Done' : 'Pending'"></td>
-        <td>
-            <form class="inline" th:action="@{/tasks/{id}/toggle(id=${t.id})}" method="post">
-                <button type="submit" th:text="${t.completed} ? 'Reopen' : 'Complete'"></button>
-            </form>
-            <form class="inline" th:action="@{/tasks/{id}/delete(id=${t.id})}" method="post">
-                <button type="submit">Delete</button>
-            </form>
-        </td>
-    </tr>
-</table>
+    <section class="card">
+        <h2>New task</h2>
+        <form class="add-form" th:action="@{/tasks}" th:object="${task}" method="post">
+            <input type="text" th:field="*{title}" placeholder="Task title">
+            <input type="text" th:field="*{description}" placeholder="Description">
+            <select th:field="*{priority}">
+                <option th:each="p : ${T(com.example.todo_tracker.model.Task.Priority).values()}"
+                        th:value="${p}" th:text="${p}"></option>
+            </select>
+            <button type="submit">Add task</button>
+            <div class="error" th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></div>
+        </form>
+    </section>
 
-<p><small>Build: <code th:text="${appVersion}">dev</code></small></p>
+    <section class="card">
+        <h2>Your tasks</h2>
+        <div class="empty" th:if="${#lists.isEmpty(tasks)}">No tasks yet.</div>
+        <div class="task" th:each="t : ${tasks}" th:classappend="${t.completed} ? 'is-done'">
+            <div class="task-info">
+                <div class="task-title" th:text="${t.title}"></div>
+                <div class="task-desc" th:text="${t.description}"></div>
+            </div>
+            <div class="badges">
+                <span class="badge" th:classappend="'prio-' + ${#strings.toLowerCase(t.priority)}"
+                      th:text="${t.priority}"></span>
+                <span class="badge" th:classappend="${t.completed} ? 'status-done' : 'status-pending'"
+                      th:text="${t.completed} ? 'Done' : 'Pending'"></span>
+            </div>
+            <div class="actions">
+                <form class="inline" th:action="@{/tasks/{id}/toggle(id=${t.id})}" method="post">
+                    <button type="submit" class="secondary" th:text="${t.completed} ? 'Reopen' : 'Complete'"></button>
+                </form>
+                <form class="inline" th:action="@{/tasks/{id}/delete(id=${t.id})}" method="post"
+                      onsubmit="return confirm('Delete this task?');">
+                    <button type="submit" class="danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>Build: <code th:text="${appVersion}">dev</code></footer>
 </body>
 </html>
