@@ -47,7 +47,7 @@ pipeline {
       }
     }
     stage('Deploy to k3s (Ansible)') {
-      steps { sh 'ansible-playbook -i localhost, -c local ansible/deploy.yml -e image=$REGISTRY/$IMAGE:doesnotexist' }
+      steps { sh 'ansible-playbook -i localhost, -c local ansible/deploy.yml -e image=$REGISTRY/$IMAGE:$TAG' }
     }
     stage('Smoke Test') {
       steps {
